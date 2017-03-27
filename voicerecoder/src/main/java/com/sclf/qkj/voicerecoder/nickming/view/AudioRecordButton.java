@@ -11,11 +11,10 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
+
 
 /**
  * 
@@ -127,7 +126,6 @@ public class AudioRecordButton extends Button implements AudioStageListener {
 				mDialogManager.showRecordingDialog();
 				isRecording = true;
 				new Thread(mGetVoiceLevelRunnable).start();
-
 				// 需要开启一个线程来变换音量
 				break;
 			case MSG_VOICE_CHANGE:

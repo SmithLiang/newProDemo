@@ -2,25 +2,26 @@ package com.czt.mp3recorder.view;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
-
 import com.czt.mp3recorder.MP3Recorder;
 import com.sclf.qkj.voicerecoder.R;
 import com.sclf.qkj.voicerecoder.nickming.view.DialogManager;
 
+import java.io.File;
 import java.io.IOException;
 
 
 @SuppressLint("AppCompatCustomView")
 public class RecordButton extends Button  {
 
+    public static String pathUrl = Environment.getExternalStorageDirectory()
+            + "/record.mp3"; //默认的音频文件
     //三个初始化状态
     private static final int STATE_NORMAL =1; //初始状态
     private static final int STATE_RECORDING=2; //录制
@@ -28,14 +29,14 @@ public class RecordButton extends Button  {
 
     private static final int MAX_SCROOL_DISTANCE = 50;//上滑取消的最大距离
 
-    private static final float MIN_RECORD_TIME = 1.0f;//录制时间最短1s
-    private static final int TOO_SHORT_TIME = 1300; //录制时间过短,显示Dialog时间段
+    private static final int MIN_RECORD_TIME = 1300;//录制时间最短1.3s
+    private static final int TOO_SHORT_TIME = 1300; //录制时间过短,显示Dialog时间段,
     private int mState = STATE_NORMAL; //状态变量
 
     private boolean isRecording = false;//是否已开始录音
     private DialogManager dialogManager;
-  //  private MP3Recorder mp3Recorder;
-    private float mTime = 0;//录制时长
+    private MP3Recorder mp3Recorder;
+    private int mTime = 0;//录制时长
     private boolean mReady; //触发长按时,初始化工作是否完成
 
     boolean isFirstClick = false;
@@ -48,37 +49,21 @@ public class RecordButton extends Button  {
         super(context, attrs);
 
         dialogManager = new DialogManager(context);
-       // mp3Recorder = new MP3Recorder();
+        mp3Recorder = new MP3Recorder(new File(pathUrl));
         isFirstClick = true;
-        Log.d("wuliang","zhengque");
         setOnLongClickListener(new OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
                 mReady = true;
-                Log.d("wuliang","jinlaile");
+                try {
+                    mp3Recorder.initAudioRecorder();
+                    mHandler.sendEmptyMessage(MSG_AUDIO_START);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 return false;
             }
         });
-        //触发长按事件
-//        setOnLongClickListener(new OnLongClickListener() {
-//            @Override
-//            public boolean onLongClick(View view) {
-//
-//                Toast.makeText(context,"hahah",Toast.LENGTH_SHORT).show();
-//
-////                try {
-////                    mp3Recorder.initAudioRecorder();
-////                } catch (IOException e) {
-////                    e.printStackTrace();
-////                }
-//                if (isFirstClick){
-//                    Log.d("wuliang","没有事项");
-//                    mHandler.sendEmptyMessage(MSG_AUDIO_START);
-//                    isFirstClick = false;
-//                }
-//                return false;
-//            }
-//        });
     }
 
 
@@ -93,9 +78,12 @@ public class RecordButton extends Button  {
                 case MSG_AUDIO_START://录音开始
                     dialogManager.showRecordingDialog();
                     isRecording = true;
-                    //ToDo 开启线程获取声音音量的变化值
+                    //ToDo 计算录音时间
+                    new Thread(VoiceTimerRunnabel).start();
                     break;
                 case MSG_VOICE_CHANGE://音量改变,Dialog显示变化
+                    //todo 变化dialog音量变化
+
                     break;
                 case MSG_DIALOG_CANCEL://取消显示框
                     break;
@@ -112,6 +100,21 @@ public class RecordButton extends Button  {
         changeState(STATE_NORMAL);
     }
 
+
+    private Runnable  VoiceTimerRunnabel = new Runnable() {
+        @Override
+        public void run() {
+            while (isRecording){
+                try {
+                    Thread.sleep(1000);
+                    mTime +=1;
+                    mHandler.sendEmptyMessage(MSG_AUDIO_START);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    };
 
 
 
@@ -153,7 +156,6 @@ public class RecordButton extends Button  {
 
         switch (action){
             case MotionEvent.ACTION_DOWN://刚开始触摸
-                mHandler.sendEmptyMessage(MSG_AUDIO_START);
                 changeState(STATE_RECORDING);
                 break;
             case MotionEvent.ACTION_MOVE://手指在移动
@@ -170,18 +172,23 @@ public class RecordButton extends Button  {
                 //录制结束,重置所有状态
                 if (!mReady){
                    reset();
-                    return super.onTouchEvent(event);
+                   return super.onTouchEvent(event);
                 }
                 //若: 按住时间过短就选择抬手,显示录制时间过短Dialog, 并且不做录制记录
                 if (!isRecording || mTime <MIN_RECORD_TIME){
                     dialogManager.timeShort();
                     mHandler.sendEmptyMessageDelayed(MSG_DIALOG_CANCEL,TOO_SHORT_TIME);
-                    //todo 不做录音文件处理,结束
+                    // 不做录音文件处理,结束,  释放资源,删除无用文件
+                    mp3Recorder.stop();
+                    mp3Recorder.cleanFile(true);
                 }
                 //表示正在正常录音结束
                 else if (mState == STATE_RECORDING){
                     dialogManager.dimissDialog();
                     //todo 释放录音对象, 并且保存时间,文件回调
+                    if (mListner != null){
+                        mListner.onFinish(mTime,pathUrl);
+                    }
                 }else if (mState == STATE_CANCEL){
                     dialogManager.dimissDialog();
                     //录音取消,销毁对象
@@ -219,14 +226,16 @@ public class RecordButton extends Button  {
         return false;
     }
 
-
     /**
-     * 回调函数，准备完毕，准备好后，button才会开始显示录音框
+     * 录制完成回调 传递音频时间和 音频路径
      */
-    public interface AudioInitStateListener {
-        void prepared();
+    public interface AudioFinishRecordListener{
+        void onFinish(int voiceRime, String voiceFilePath);
     }
-
+    private AudioFinishRecordListener mListner;
+    public void setAudioFinishRecordListener(AudioFinishRecordListener audioFinishRecordListener){
+        mListner = audioFinishRecordListener;
+    }
 
 
 //    private static class MyHandler extends Handler{

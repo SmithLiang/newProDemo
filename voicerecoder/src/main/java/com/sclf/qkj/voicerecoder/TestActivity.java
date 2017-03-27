@@ -9,6 +9,7 @@ import android.util.Log;
 import android.view.View;
 
 import com.czt.mp3recorder.MP3Recorder;
+import com.czt.mp3recorder.view.RecordButton;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,10 +49,17 @@ public class TestActivity extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.btn_view_record).setOnLongClickListener(new View.OnLongClickListener() {
+//        findViewById(R.id.btn_view_record).setOnLongClickListener(new View.OnLongClickListener() {
+//            @Override
+//            public boolean onLongClick(View view) {
+//                return false;
+//            }
+//        });
+        ((RecordButton)findViewById(R.id.btn_view_record)).setAudioFinishRecordListener
+                (new RecordButton.AudioFinishRecordListener() {
             @Override
-            public boolean onLongClick(View view) {
-                return false;
+            public void onFinish(int voiceRime, String voiceFilePath) {
+
             }
         });
     }

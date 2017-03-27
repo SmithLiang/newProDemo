@@ -9,3 +9,5 @@
 .externalNativeBuild
 
 
+libs/
+src/main/res/drawable/

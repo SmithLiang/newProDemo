@@ -6,6 +6,7 @@ import android.media.MediaRecorder;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 
 import com.czt.mp3recorder.util.LameUtil;
 
@@ -68,7 +69,7 @@ public class MP3Recorder {
 	 *            target file
 	 */
 	public static String pathUrl = Environment.getExternalStorageDirectory()
-			+ "/fft/record.mp3";
+			+ "/record.mp3";
 
 	public MP3Recorder(File file, Handler handler, int maxTime) {
 		mRecordFile = file;
@@ -76,6 +77,9 @@ public class MP3Recorder {
 		this.maxTime = maxTime;
 	}
 
+	public MP3Recorder(File file) {
+		mRecordFile = file;
+	}
 	public MP3Recorder() {
 	}
 	/**
@@ -139,6 +143,7 @@ public class MP3Recorder {
 					if (readSize > 0) {
 						double amplitude = sum / readSize;
 						mVolume = (int) Math.sqrt(amplitude);
+						Log.d("wuliang",mVolume+"hah00");
 					}
 				}
 			}.start();
